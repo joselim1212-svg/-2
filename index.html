@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4조 2교대 자연발생 시간 계산기</title>
+<style>
+  :root { color-scheme: light; --ink:#182230; --muted:#667085; --line:#e4e7ec; --bg:#f5f7fa; --accent:#2457c5; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:22px 14px 40px; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif; }
+  main { max-width:760px; margin:auto; }
+  h1 { font-size:1.45rem; margin:0 0 8px; }
+  .intro { color:var(--muted); line-height:1.55; margin:0 0 20px; font-size:.94rem; }
+  .card { background:white; border:1px solid var(--line); border-radius:16px; padding:18px; margin:14px 0; box-shadow:0 2px 8px #10182808; }
+  h2 { font-size:1.05rem; margin:0 0 14px; }
+  .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  label { display:block; font-size:.88rem; font-weight:650; }
+  input { display:block; width:100%; margin-top:6px; padding:12px; border:1px solid #cfd5df; border-radius:10px; font:inherit; font-size:1rem; }
+  input:focus { outline:2px solid #b8cdfc; border-color:var(--accent); }
+  .hint { color:var(--muted); font-size:.78rem; font-weight:400; margin-top:4px; line-height:1.4; }
+  .result { background:#f0f5ff; border-color:#d7e4ff; }
+  .big { font-size:2.15rem; font-weight:800; color:var(--accent); letter-spacing:-.04em; }
+  .sub { color:var(--muted); font-size:.84rem; }
+  .rows { display:grid; grid-template-columns:1fr auto; gap:9px 14px; align-items:center; font-size:.92rem; }
+  .rows strong { font-variant-numeric:tabular-nums; }
+  .rule { border-top:1px solid var(--line); margin:13px 0; }
+  button { border:0; background:var(--accent); color:white; padding:11px 15px; border-radius:10px; font:inherit; font-weight:650; cursor:pointer; }
+  button.secondary { background:#eef2f7; color:#344054; }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .warning { font-size:.84rem; color:#7a4b00; background:#fff8e8; border:1px solid #f5dfaa; border-radius:12px; padding:12px; line-height:1.55; }
+  footer { color:var(--muted); font-size:.78rem; line-height:1.55; margin-top:16px; }
+  @media(max-width:520px){ .grid{grid-template-columns:1fr 1fr;} .card{padding:15px;} .big{font-size:1.9rem;} }
+</style>
+</head>
+<body>
+<main>
+  <h1>4조 2교대 자연발생 시간 계산기</h1>
+  <p class="intro">한 달의 근무 횟수와 달력 일수를 입력하면, 주당 평균 유급시간과 주 40시간 초과분을 추정합니다. 12시간 근무 중 휴게 1시간은 실근로 11시간으로 계산합니다.</p>
+
+  <section class="card">
+    <h2>① 월간 근무 횟수 입력</h2>
+    <div class="grid">
+      <label>해당 월의 총 일수
+        <input id="days" type="number" min="1" max="31" step="1" value="31">
+        <div class="hint">예: 12월은 31일</div>
+      </label>
+      <label>평일 주간근무 횟수
+        <input id="weekday" type="number" min="0" step="1" value="7">
+        <div class="hint">휴게 1시간 무급</div>
+      </label>
+      <label>주말 주간근무 횟수
+        <input id="weekend" type="number" min="0" step="1" value="1">
+        <div class="hint">토·일 주간, 유급휴게 1시간</div>
+      </label>
+      <label>공휴일 주간근무 횟수
+        <input id="holiday" type="number" min="0" step="1" value="0">
+        <div class="hint">공휴일 주간, 유급휴게 1시간</div>
+      </label>
+      <label>야간근무 횟수
+        <input id="night" type="number" min="0" step="1" value="8">
+        <div class="hint">유급휴게 1시간</div>
+      </label>
+      <label>1회 근무의 실근로시간
+        <input id="workHours" type="number" min="0" step="0.25" value="11">
+        <div class="hint">12시간 체류 − 휴게 1시간</div>
+      </label>
+    </div>
+    <div class="hint" style="margin-top:12px">※ 주말과 공휴일이 겹치는 주간근무는 한쪽에만 입력하세요. 중복 집계하지 않습니다.</div>
+    <div class="actions">
+      <button onclick="calculate()">계산하기</button>
+      <button class="secondary" onclick="resetExample()">2026년 12월 예시 복원</button>
+      <button class="secondary" onclick="clearInputs()">초기화</button>
+    </div>
+  </section>
+
+  <section class="card result" aria-live="polite">
+    <h2>② 계산 결과</h2>
+    <div class="sub">주 40시간 기준 월간 평균 초과분</div>
+    <div class="big" id="weeklyOver">1.77시간</div>
+    <div class="sub" id="weeklyOverMin">약 1시간 46분 / 주</div>
+    <div class="rule"></div>
+    <div class="rows">
+      <span>전체 근무 횟수</span><strong id="totalShifts">16회</strong>
+      <span>월간 실근로시간</span><strong id="actual">176시간</strong>
+      <span>유급 휴게시간 합계</span><strong id="paidBreak">9시간</strong>
+      <span>월간 임금산정상 합계시간</span><strong id="credited">185시간</strong>
+      <span>주 환산계수</span><strong id="weeks">4.43주</strong>
+      <span>주당 평균 임금산정상 시간</span><strong id="weeklyCredited">41.77시간</strong>
+      <span>주 40시간 초과분</span><strong id="over">1.77시간</strong>
+    </div>
+    <p class="hint" id="validation" style="margin-top:12px"></p>
+  </section>
+
+  <section class="card">
+    <h2>③ 적용한 계산식</h2>
+    <div class="rows">
+      <span>월간 실근로시간</span><strong>(평일주간 + 주말주간 + 공휴일주간 + 야간) × 11</strong>
+      <span>월간 유급휴게시간</span><strong>(주말주간 + 공휴일주간 + 야간) × 1</strong>
+      <span>주당 평균시간</span><strong>월간 합계시간 ÷ 월 일수 × 7</strong>
+      <span>주당 초과분</span><strong>주당 평균시간 − 40 (최솟값 0)</strong>
+    </div>
+  </section>
+
+  <div class="warning">
+    <strong>중요한 해석상 주의</strong><br>
+    이 계산기는 합의서의 임금 지급 구분을 바탕으로 만든 단순 추정기입니다. 합의서 제6조 제3항 다목은 유급으로 인정하는 휴게 1시간을 근로시간에 해당하지 않는다고 정하고 있습니다. 따라서 화면의 ‘주 40시간 초과분’은 유급시간을 합산한 산술상 추정치이지, 법적으로 인정되는 연장근로시간 또는 실제 지급될 시간외수당을 확정하는 값이 아닙니다. 실제 산정에는 공사의 탄력적 근로시간제 단위기간, 급여 산식 및 노사 간 ‘자연발생분’ 산정 기준을 확인해야 합니다.
+  </div>
+  <footer>기본 입력값은 제공된 2026년 12월 근무표를 단순 집계한 예시입니다: 평일 주간 7회, 주말 주간 1회, 공휴일 주간 0회, 야간 8회, 총 31일.</footer>
+</main>
+<script>
+const ids = ["days","weekday","weekend","holiday","night","workHours"];
+function val(id){ return Number(document.getElementById(id).value) || 0; }
+function fmt(n){ return n.toLocaleString("ko-KR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function calculate(){
+  const days=val("days"), wd=val("weekday"), we=val("weekend"), ho=val("holiday"), ni=val("night"), wh=val("workHours");
+  const shifts=wd+we+ho+ni;
+  const actual=shifts*wh;
+  const paid=(we+ho+ni); // 1 paid break hour per eligible shift
+  const credited=actual+paid;
+  const weeks=days>0?days/7:0;
+  const weekly=weeks?credited/weeks:0;
+  const over=Math.max(0,weekly-40);
+  document.getElementById("weeklyOver").textContent=fmt(over)+"시간";
+  document.getElementById("weeklyOverMin").textContent="약 "+Math.floor(over)+"시간 "+Math.round((over%1)*60)+"분 / 주";
+  document.getElementById("totalShifts").textContent=shifts+"회";
+  document.getElementById("actual").textContent=fmt(actual)+"시간";
+  document.getElementById("paidBreak").textContent=fmt(paid)+"시간";
+  document.getElementById("credited").textContent=fmt(credited)+"시간";
+  document.getElementById("weeks").textContent=fmt(weeks)+"주";
+  document.getElementById("weeklyCredited").textContent=fmt(weekly)+"시간";
+  document.getElementById("over").textContent=fmt(over)+"시간";
+  const warning = shifts===0 ? "근무 횟수를 입력하세요." :
+    (shifts > days ? "확인: 근무 횟수가 해당 월의 일수보다 많습니다." :
+    "입력한 주간·야간 근무 횟수 합계: "+shifts+"회. 주말·공휴일 주간은 서로 중복되지 않게 입력했는지 확인하세요.");
+  document.getElementById("validation").textContent=warning;
+}
+function resetExample(){
+  const v={days:31,weekday:7,weekend:1,holiday:0,night:8,workHours:11};
+  for(const k in v) document.getElementById(k).value=v[k];
+  calculate();
+}
+function clearInputs(){
+  const v={days:31,weekday:0,weekend:0,holiday:0,night:0,workHours:11};
+  for(const k in v) document.getElementById(k).value=v[k];
+  calculate();
+}
+ids.forEach(id=>document.getElementById(id).addEventListener("input",calculate));
+calculate();
+</script>
+</body>
+</html>
